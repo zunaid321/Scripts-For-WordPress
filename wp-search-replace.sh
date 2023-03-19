@@ -1,33 +1,36 @@
 #!/bin/bash
 
-while true; do
-    echo "Enter the search term:"
-    read search_term
+# Change directory to public_html
+cd /path/to/public_html || exit
 
-    echo "Enter the replacement term:"
-    read replace_term
+# Ask for search and replace terms
+read -p "What should be searched for? " search_term
+read -p "What should it be replaced with? " replace_term
 
-    echo "You entered the following values:"
-    echo "Search term: $search_term"
-    echo "Replace term: $replace_term"
+# Show the command with dry-run option
+echo "The command with dry-run option:"
+echo "wp search-replace \"$search_term\" \"$replace_term\" --all-tables --dry-run"
 
-    read -p "Are these values okay? (y/n) " confirm
-    case $confirm in
-        [Yy]* ) break;;
-        [Nn]* ) unset search_term replace_term; continue;;
-        * ) echo "Please answer y or n.";;
-    esac
-done
-
-echo "Executing the following command: wp search-replace \"$search_term\" \"$replace_term\""
-read -n 1 -p "Press enter to execute the command, or 'n' to restart: " execute
-echo ""
-
-if [ "$execute" == "n" ]; then
-    echo "Restarting script..."
-    unset search_term replace_term
-    exec $0
+# Confirm before executing the command
+read -p "Do you want to run this command? (y/n) " confirm
+if [[ "$confirm" == [yY] ]]; then
+  # Execute the command without dry-run
+  wp search-replace "$search_term" "$replace_term" --all-tables
+  # Clear the cache
+  rm -rf wp-content/cache
+  rm -rf wp-content/et-cache
+  wp cache purge
+  wp cdn purge
+  redis-cli -s ~/redis/redis.sock flushall
+  # Go back to the original directory
+  cd - || exit
+  # Delete the script
+  rm "$0"
 else
-    wp search-replace "$search_term" "$replace_term"
-    unset search_term replace_term
+  # Go back to the original directory
+  cd - || exit
+  # Exit without running the command
+  exit 1
 fi
+
+exit 0
